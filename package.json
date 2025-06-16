@@ -19,6 +19,7 @@
     "express-rate-limit": "^7.5.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.2",
+    "pm2": "^6.0.8",
     "string-similarity": "^4.0.4"
   }
 }
