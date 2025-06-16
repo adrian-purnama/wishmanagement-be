@@ -8,7 +8,7 @@ module.exports = {
     },
     {
       name: "worker",
-      script: "./worker/matchworker.js",
+      script: "./worker/matchWorker.js",
       instances: 1,
       exec_mode: "fork",
     },
