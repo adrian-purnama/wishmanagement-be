@@ -6,7 +6,7 @@ import Item from "../schema/ItemSchema.js";
 import stringSimilarity from "string-similarity";
 
 dotenv.config();
-mongoose.connect("mongodb://adrianpurnama209:JsoDKeaMmzEp8JyC@ac-xjhhig3-shard-00-00.4vk5w8l.mongodb.net:27017,ac-xjhhig3-shard-00-01.4vk5w8l.mongodb.net:27017,ac-xjhhig3-shard-00-02.4vk5w8l.mongodb.net:27017/?ssl=true&replicaSet=atlas-13vr75-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0");
+mongoose.connect(process.env.MONGODB_CONNECTION_LINK_LEGACY);
 
 // Reuse your fuzzy matching
 const findClosestItem = async (inputName, threshold = 0.8) => {
