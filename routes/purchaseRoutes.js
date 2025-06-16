@@ -4,8 +4,17 @@ import Item from "../schema/ItemSchema.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import stringSimilarity from "string-similarity";
 import MatchingQueue from "../schema/MatchingQueueSchema.js";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import dotenv from "dotenv";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+dotenv.config();
 const router = express.Router();
+const upload = multer({ dest: "uploads/" });
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const findClosestItem = async (inputName, threshold = 0.8) => {
     if (!inputName || typeof inputName !== "string") {
@@ -49,7 +58,6 @@ const findClosestItem = async (inputName, threshold = 0.8) => {
     return null;
 };
 
-// 📝 Manual entry
 // 📝 Manual entry
 router.post("/manual", authMiddleware, async (req, res) => {
     console.log("🔁 [POST] /purchase/manual called at", new Date().toISOString());
@@ -245,6 +253,72 @@ router.get("/matching-status/:id", authMiddleware, async (req, res) => {
         total: status.totalItems,
         processed: status.processed,
     });
+});
+
+// 🧾 Upload receipt endpoint
+router.post("/upload-receipt", upload.single("receipt"), async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) return res.status(400).json({ condition: false, message: "No file uploaded" });
+
+        const fileBuffer = fs.readFileSync(file.path);
+        const base64Pdf = fileBuffer.toString("base64");
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+You will receive a scanned or digital receipt in PDF format. Your task is to extract structured data from the document and return it in strict JSON format.
+
+Schema:
+{
+  "items": [{ "name": string, "quantity": number, "price_per_unit": number, "total": number }],
+  "shipping_fee": number,
+  "admin_fee": number,
+  "store": string
+}
+
+Guidelines:
+- Return valid JSON only.
+- Use 0 or null when unsure.
+- Assume currency is IDR.
+-Store name is found in the top right of the first page in "Nama Penjual"
+`;
+
+        const result = await model.generateContent([
+            {
+                inlineData: {
+                    mimeType: "application/pdf",
+                    data: base64Pdf,
+                },
+            },
+            prompt,
+        ]);
+
+        let output = result.response.text();
+
+        fs.unlinkSync(file.path);
+        output = output
+            .replace(/```(?:json)?/gi, "") 
+            .replace(/```/g, "")
+            .trim();
+        let parsed;
+        try {
+            parsed = JSON.parse(output);
+            console.log(parsed)
+        } catch (err) {
+            return res
+                .status(500)
+                .json({ condition: false, message: "Gemini response invalid", raw: output });
+        }
+
+        return res.json({
+            condition: true,
+            data: parsed || {}
+        });
+    } catch (err) {
+        console.error("🛑 Receipt upload error:", err);
+        return res.status(500).json({ condition: false, message: "Upload failed" });
+    }
 });
 
 export default router;
