@@ -3,13 +3,13 @@ module.exports = {
     {
       name: "api",
       script: "./index.js",
-      instances: 1,
+      interpreter: "node", 
       exec_mode: "fork",
     },
     {
       name: "worker",
       script: "./worker/matchWorker.js",
-      instances: 1,
+      interpreter: "node",
       exec_mode: "fork",
     },
   ],
