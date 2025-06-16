@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx pm2-runtime start ecosystem.config.js"
+    "start": "npx pm2-runtime start ecosystem.config.cjs"
   },
   "author": "",
   "license": "ISC",
