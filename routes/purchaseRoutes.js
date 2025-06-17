@@ -12,8 +12,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
-
+const upload = multer({
+  dest: "uploads/",
+  fileFilter: (req, file, cb) => {
+    const allowed = ["application/pdf", "image/jpeg", "image/png"];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const findClosestItem = async (inputName, threshold = 0.8) => {
@@ -262,7 +267,8 @@ router.post("/upload-receipt", upload.single("receipt"), async (req, res) => {
         if (!file) return res.status(400).json({ condition: false, message: "No file uploaded" });
 
         const fileBuffer = fs.readFileSync(file.path);
-        const base64Pdf = fileBuffer.toString("base64");
+        const base64Data = fileBuffer.toString("base64");
+        const mimeType = file.mimetype;
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -287,8 +293,8 @@ Guidelines:
         const result = await model.generateContent([
             {
                 inlineData: {
-                    mimeType: "application/pdf",
-                    data: base64Pdf,
+                    mimeType,
+                    data: base64Data,
                 },
             },
             prompt,
@@ -298,13 +304,13 @@ Guidelines:
 
         fs.unlinkSync(file.path);
         output = output
-            .replace(/```(?:json)?/gi, "") 
+            .replace(/```(?:json)?/gi, "")
             .replace(/```/g, "")
             .trim();
         let parsed;
         try {
             parsed = JSON.parse(output);
-            console.log(parsed)
+            console.log(parsed);
         } catch (err) {
             return res
                 .status(500)
@@ -313,7 +319,7 @@ Guidelines:
 
         return res.json({
             condition: true,
-            data: parsed || {}
+            data: parsed || {},
         });
     } catch (err) {
         console.error("🛑 Receipt upload error:", err);
