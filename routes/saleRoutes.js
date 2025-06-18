@@ -30,14 +30,23 @@ router.post("/manual", authMiddleware, async (req, res) => {
 
 // 📦 Get all sales
 router.get("/all", authMiddleware, async (req, res) => {
-  try {
-    const sales = await Sale.find().sort({ date: -1 });
-    res.json(sales);
-  } catch (err) {
-    console.error("Failed to fetch sales:", err);
-    res.status(500).json({ condition: false, message: "Failed to load sales" });
-  }
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const [sales, total] = await Promise.all([
+            Sale.find().sort({ date: -1 }).skip(skip).limit(limit),
+            Sale.countDocuments()
+        ]);
+
+        res.json({ condition: true, sales, total });
+    } catch (err) {
+        console.error("Failed to fetch sales:", err);
+        res.status(500).json({ condition: false, message: "Failed to load sales" });
+    }
 });
+
 
 // 📝 Update a sale
 router.put("/:id", authMiddleware, async (req, res) => {

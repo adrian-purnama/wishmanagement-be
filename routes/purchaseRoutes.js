@@ -140,12 +140,22 @@ router.post("/manual", authMiddleware, async (req, res) => {
 
 router.get("/all", authMiddleware, async (req, res) => {
     try {
-        const purchases = await Purchase.find().sort({ date: -1 });
-        res.json({ condition: true, purchases });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const [purchases, total] = await Promise.all([
+            Purchase.find().sort({ date: -1 }).skip(skip).limit(limit),
+            Purchase.countDocuments()
+        ]);
+
+        res.json({ condition: true, purchases, total });
     } catch (err) {
+        console.error("Failed to fetch purchases:", err);
         res.status(500).json({ condition: false, message: "Failed to load" });
     }
 });
+
 
 // 📝 Update a purchase
 router.put("/:id", authMiddleware, async (req, res) => {

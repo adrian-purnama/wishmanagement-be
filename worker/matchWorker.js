@@ -63,6 +63,7 @@ const processQueue = async () => {
 
         job.status = "done";
         await job.save();
+        await purchase.save();
         console.log(`✅ Finished purchase ${job.purchaseId}`);
     } catch (err) {
         console.error("❌ Worker error:", err);
