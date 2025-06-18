@@ -10,40 +10,40 @@ const router = express.Router();
 const jwtSecretKey = process.env.JWT_SECRET_KEY;
 
 // 🟢 Register
-router.post('/register', async (req, res) => {
-  try {
-    console.log("register")
-    const { username, email, password } = req.body;
+// router.post('/register', async (req, res) => {
+//   try {
+//     console.log("register")
+//     const { username, email, password } = req.body;
 
-    if (!email || !password || !username) {
-      return res.status(400).json({ message: "Missing fields", condition: false });
-    }
+//     if (!email || !password || !username) {
+//       return res.status(400).json({ message: "Missing fields", condition: false });
+//     }
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(409).json({ message: "Email already registered", condition: false });
-    }
+//     const userExists = await User.findOne({ email });
+//     if (userExists) {
+//       return res.status(409).json({ message: "Email already registered", condition: false });
+//     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({
-      username,
-      email,
-      password: hashedPassword,
-    });
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     const newUser = await User.create({
+//       username,
+//       email,
+//       password: hashedPassword,
+//     });
 
-    const token = jwt.sign({ userId: newUser._id }, jwtSecretKey, { expiresIn: '7d' });
+//     const token = jwt.sign({ userId: newUser._id }, jwtSecretKey, { expiresIn: '7d' });
 
-    res.json({
-      message: "User registered successfully",
-      token,
-      username: newUser.username,
-      condition: true
-    });
-  } catch (err) {
-    console.error("Register error:", err.message);
-    res.status(500).json({ message: "Registration failed", condition: false });
-  }
-});
+//     res.json({
+//       message: "User registered successfully",
+//       token,
+//       username: newUser.username,
+//       condition: true
+//     });
+//   } catch (err) {
+//     console.error("Register error:", err.message);
+//     res.status(500).json({ message: "Registration failed", condition: false });
+//   }
+// });
 
 // 🟢 Login
 router.post('/login', async (req, res) => {
