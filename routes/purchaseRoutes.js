@@ -13,12 +13,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 dotenv.config();
 const router = express.Router();
 const upload = multer({
-  dest: "uploads/",
-  fileFilter: (req, file, cb) => {
-    const allowed = ["application/pdf", "image/jpeg", "image/png"];
-    cb(null, allowed.includes(file.mimetype));
-  },
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, "uploads/"),
+        filename: (req, file, cb) =>
+            cb(null, `${Date.now()}-${file.originalname}`),
+    }),
+    limits: {
+        fileSize: 10 * 1024 * 1024 // Keep size limit per file (10MB recommended)
+    },
 });
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const findClosestItem = async (inputName, threshold = 0.8) => {
@@ -65,7 +69,6 @@ const findClosestItem = async (inputName, threshold = 0.8) => {
 
 // 📝 Manual entry
 router.post("/manual", authMiddleware, async (req, res) => {
-    console.log("🔁 [POST] /purchase/manual called at", new Date().toISOString());
 
     try {
         const { store, items } = req.body;
@@ -131,7 +134,7 @@ router.post("/manual", authMiddleware, async (req, res) => {
             status: "pending",
         });
 
-        res.json({ condition: true, message: "Purchase saved", purchase: newPurchase });
+        res.json({ condition: true, message: "Purchase saved", purchase_id: newPurchase._id });
     } catch (err) {
         console.error("Manual save error:", err);
         res.status(500).json({ condition: false, message: "Server error" });
@@ -146,7 +149,7 @@ router.get("/all", authMiddleware, async (req, res) => {
 
         const [purchases, total] = await Promise.all([
             Purchase.find().sort({ date: -1 }).skip(skip).limit(limit),
-            Purchase.countDocuments()
+            Purchase.countDocuments(),
         ]);
 
         res.json({ condition: true, purchases, total });
@@ -155,7 +158,6 @@ router.get("/all", authMiddleware, async (req, res) => {
         res.status(500).json({ condition: false, message: "Failed to load" });
     }
 });
-
 
 // 📝 Update a purchase
 router.put("/:id", authMiddleware, async (req, res) => {
@@ -166,6 +168,13 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
         if (!store || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ condition: false, message: "Invalid input" });
+        }
+        const status = await MatchingQueue.findOne({ purchaseId: req.params.id });
+        if (!status || status.status !== "done") {
+        return res.status(400).json({
+            condition: false,
+            message: "Cannot edit until matching is finished",
+        });
         }
 
         // 1. Find original purchase
@@ -271,14 +280,12 @@ router.get("/matching-status/:id", authMiddleware, async (req, res) => {
 });
 
 // 🧾 Upload receipt endpoint
-router.post("/upload-receipt", upload.single("receipt"), async (req, res) => {
+router.post("/upload-receipt", upload.array("receipts"), async (req, res) => {
     try {
-        const file = req.file;
-        if (!file) return res.status(400).json({ condition: false, message: "No file uploaded" });
-
-        const fileBuffer = fs.readFileSync(file.path);
-        const base64Data = fileBuffer.toString("base64");
-        const mimeType = file.mimetype;
+        const files = req.files;
+        if (!files || files.length === 0) {
+            return res.status(400).json({ condition: false, message: "No files uploaded" });
+        }
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -297,44 +304,58 @@ Guidelines:
 - Return valid JSON only.
 - Use 0 or null when unsure.
 - Assume currency is IDR.
--Store name is found in the top right of the first page in "Nama Penjual"
+- Store name is found in the top right of the first page in "Nama Penjual"
 `;
 
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    mimeType,
-                    data: base64Data,
-                },
-            },
-            prompt,
-        ]);
+        const results = [];
 
-        let output = result.response.text();
+        for (const file of files) {
+            try {
+                if (!file.path) continue;
 
-        fs.unlinkSync(file.path);
-        output = output
-            .replace(/```(?:json)?/gi, "")
-            .replace(/```/g, "")
-            .trim();
-        let parsed;
-        try {
-            parsed = JSON.parse(output);
-            console.log(parsed);
-        } catch (err) {
-            return res
-                .status(500)
-                .json({ condition: false, message: "Gemini response invalid", raw: output });
+                const fileBuffer = fs.readFileSync(file.path);
+                const base64Data = fileBuffer.toString("base64");
+                const mimeType = file.mimetype;
+
+                const result = await model.generateContent([
+                    {
+                        inlineData: {
+                            mimeType,
+                            data: base64Data,
+                        },
+                    },
+                    prompt,
+                ]);
+
+                let output = result.response.text();
+                fs.unlinkSync(file.path); // Clean up uploaded file
+
+                output = output
+                    .replace(/```(?:json)?/gi, "")
+                    .replace(/```/g, "")
+                    .trim();
+
+                try {
+                    const parsed = JSON.parse(output);
+                    results.push(parsed);
+                } catch (err) {
+                    results.push({ error: true, raw: output });
+                }
+            } catch (fileErr) {
+                console.error("❌ File processing error:", fileErr);
+                results.push({ error: true, message: "Error reading or processing file" });
+            }
         }
 
         return res.json({
             condition: true,
-            data: parsed || {},
+            results,
         });
     } catch (err) {
         console.error("🛑 Receipt upload error:", err);
         return res.status(500).json({ condition: false, message: "Upload failed" });
     }
 });
+
 
 export default router;
