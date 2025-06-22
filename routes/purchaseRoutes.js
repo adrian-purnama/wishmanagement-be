@@ -15,11 +15,10 @@ const router = express.Router();
 const upload = multer({
     storage: multer.diskStorage({
         destination: (req, file, cb) => cb(null, "uploads/"),
-        filename: (req, file, cb) =>
-            cb(null, `${Date.now()}-${file.originalname}`),
+        filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
     }),
     limits: {
-        fileSize: 10 * 1024 * 1024 // Keep size limit per file (10MB recommended)
+        fileSize: 10 * 1024 * 1024, // Keep size limit per file (10MB recommended)
     },
 });
 
@@ -69,7 +68,6 @@ const findClosestItem = async (inputName, threshold = 0.8) => {
 
 // 📝 Manual entry
 router.post("/manual", authMiddleware, async (req, res) => {
-
     try {
         const { store, items } = req.body;
         const admin_fee = Number(req.body.admin_fee || 0);
@@ -169,12 +167,15 @@ router.put("/:id", authMiddleware, async (req, res) => {
         if (!store || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ condition: false, message: "Invalid input" });
         }
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ condition: false, message: "Invalid purchase ID" });
+        }
         const status = await MatchingQueue.findOne({ purchaseId: req.params.id });
         if (!status || status.status !== "done") {
-        return res.status(400).json({
-            condition: false,
-            message: "Cannot edit until matching is finished",
-        });
+            return res.status(400).json({
+                condition: false,
+                message: "Cannot edit until matching is finished",
+            });
         }
 
         // 1. Find original purchase
@@ -356,6 +357,5 @@ Guidelines:
         return res.status(500).json({ condition: false, message: "Upload failed" });
     }
 });
-
 
 export default router;
