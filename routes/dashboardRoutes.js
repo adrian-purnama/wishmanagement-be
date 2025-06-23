@@ -3,8 +3,13 @@ import Purchase from "../schema/PurchaseSchema.js";
 import Sale from "../schema/SaleSchema.js";
 import Item from "../schema/ItemSchema.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
 
 const router = express.Router();
+dotenv.config();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 const getDateRange = (range) => {
     const now = new Date();
@@ -226,5 +231,55 @@ router.get("/", authMiddleware, async (req, res) => {
         res.status(500).json({ condition: false, message: "Dashboard load failed" });
     }
 });
+
+router.post("/ask-ai", authMiddleware, async (req, res) => {
+    try {
+        const { prompt } = req.body;
+
+        if (!prompt || typeof prompt !== "string" || prompt.trim().length < 5) {
+            return res.status(400).json({ message: "Invalid prompt" });
+        }
+
+        // Load relevant data
+        const [purchases, sales, items] = await Promise.all([
+            Purchase.find().sort({ date: -1 }).limit(100).lean(),
+            Sale.find().sort({ date: -1 }).limit(100).lean(),
+            Item.find().sort({ createdAt: -1 }).limit(100).lean(),
+        ]);
+
+        const data = {
+            summary: {
+                purchase_count: purchases.length,
+                sale_count: sales.length,
+                item_count: items.length,
+            },
+            purchases,
+            sales,
+            items,
+        };
+
+        const fullPrompt = `
+You are a business analysis assistant. The user will give you a question. 
+Use the following business data to answer with clarity and insight.
+
+User question: ${prompt}
+
+Business data (JSON):
+${JSON.stringify(data, null, 2)}
+
+Please respond with helpful advice, trends, summaries, or clear metrics in readable text.
+        `;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent(fullPrompt);
+
+        const responseText = result.response.text();
+        return res.json({ answer: responseText.trim() });
+    } catch (err) {
+        console.error("❌ AI Ask Error:", err);
+        return res.status(500).json({ message: "AI processing failed" });
+    }
+});
+
 
 export default router;
