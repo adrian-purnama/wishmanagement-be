@@ -9,6 +9,8 @@ import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import mongoose from "mongoose";
+
 
 dotenv.config();
 const router = express.Router();
