@@ -172,13 +172,13 @@ router.put("/:id", authMiddleware, async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
             return res.status(400).json({ condition: false, message: "Invalid purchase ID" });
         }
-        const status = await MatchingQueue.findOne({ purchaseId: req.params.id });
-        if (!status || status.status !== "done") {
-            return res.status(400).json({
-                condition: false,
-                message: "Cannot edit until matching is finished",
-            });
-        }
+        // if (!status || status.status !== "done") {
+        //     return res.status(400).json({
+        //         condition: false,
+        //         message: "Cannot edit until matching is finished",
+        //     });
+        // }
+        // console.log(status)
 
         // 1. Find original purchase
         const original = await Purchase.findById(req.params.id);
