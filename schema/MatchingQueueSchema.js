@@ -10,7 +10,7 @@ const MatchingQueueSchema = new mongoose.Schema({
   processed: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ["pending", "done", "error"],
+    enum: ["pending", "processing" , "done", "error"],
     default: "pending"
   }
 }, { timestamps: true });

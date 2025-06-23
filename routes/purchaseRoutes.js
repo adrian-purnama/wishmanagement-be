@@ -270,6 +270,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     }
 });
 
+//logic ini coba pikirin lagi
 router.get("/matching-status/:id", authMiddleware, async (req, res) => {
     const status = await MatchingQueue.findOne({ purchaseId: req.params.id });
     if (!status) return res.json({ done: true });
