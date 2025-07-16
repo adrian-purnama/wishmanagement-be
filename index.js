@@ -9,6 +9,7 @@ import purchaseRoutes from "./routes/purchaseRoutes.js";
 import saleRoutes from "./routes/saleRoutes.js";
 import itemRoutes from "./routes/itemRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import tiktokRoutes from "./routes/tiktokRoutes.js";
 
 dotenv.config();
 const mongodbLink = process.env.MONGODB_CONNECTION_LINK_LEGACY
@@ -29,19 +30,19 @@ app.use(cors({
     app.use(express.json());
     app.use(express.text());
     
-    const globalLimiter = rateLimit({
-        windowMs: 10 * 1000,
-        max: 20,
-        message: { message: "Too many requests, slow down!" },
-        standardHeaders: true,
-        legacyHeaders: false,
-        handler: (req, res) => {
-            console.log(`🚨 Rate limit exceeded: ${req.ip}`);
-            res.status(429).json({ message: "Too many requests, slow down!" });
-        }
-    });
+    // const globalLimiter = rateLimit({
+    //     windowMs: 10 * 1000,
+    //     max: 20,
+    //     message: { message: "Too many requests, slow down!" },
+    //     standardHeaders: true,
+    //     legacyHeaders: false,
+    //     handler: (req, res) => {
+    //         console.log(`🚨 Rate limit exceeded: ${req.ip}`);
+    //         res.status(429).json({ message: "Too many requests, slow down!" });
+    //     }
+    // });
     
-    app.use(globalLimiter);
+    // app.use(globalLimiter);
     
     // Attach route handlers
     app.use('/auth', authRoutes);
@@ -49,6 +50,7 @@ app.use(cors({
     app.use("/sale", saleRoutes);
     app.use("/item", itemRoutes);
     app.use("/dashboard", dashboardRoutes);
+    app.use("/tiktok", tiktokRoutes);
 
 
 app.get('/test', (req, res) => res.send('hehe'));
